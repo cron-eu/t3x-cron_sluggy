@@ -28,11 +28,13 @@ Configure settings in Extension Configuration:
 Usage
 -----
 
-    bin/typo3cms sluggy:regenerate [-d|--dry-mode] [-r|--redirects [REDIRECTS]] [--] <root-page> <language>
+    bin/typo3 sluggy:regenerate [-d|--dry-mode] [-r|--redirects [REDIRECTS]] [-f|--format [FORMAT]] [--] <root-page> <language>
 
       -d, --dry-mode               do not change anything
       -r, --redirects[=REDIRECTS]  create redirects for changed slugs with this TTL in days
                                     • [default: 30]
+      -f, --format[=FORMAT]        print output as "plain", "csv" or "html"
+                                    • [default: "plain"]
 
 Examples
 --------
