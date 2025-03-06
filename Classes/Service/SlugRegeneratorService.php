@@ -360,7 +360,7 @@ class SlugRegeneratorService implements SiteAwareInterface
             $this->output->writeln('<h1>Site: ' . $this->site->getIdentifier() . '</h1>');
             $this->output->writeln('<ul>');
             $this->output->writeln('<li>URL: ' . (string)$this->site->getBase() . '</li>');
-            $this->output->writeln('<li>Language: ' . (string)$this->site->getLanguageById($language)->getTwoLetterIsoCode() . '</li>');
+            $this->output->writeln('<li>Language: ' . (string)$this->site->getLanguageById($language)->getTypo3Language() . '</li>');
             $this->output->writeln('</ul>');
             $this->output->writeln('<h4>Configuration</h4><ul>');
             $this->output->writeln('<li>Slug Format: <code>' . join(' ' . $fieldSeparator . ' ', $slugFormat) . '</code></li>');
@@ -374,7 +374,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         } else {
             $this->output->writeln('Site: ' . $this->site->getIdentifier());
             $this->output->writeln('- URL: ' . (string)$this->site->getBase());
-            $this->output->writeln('- Language: ' . (string)$this->site->getLanguageById($language)->getTwoLetterIsoCode());
+            $this->output->writeln('- Language: ' . (string)$this->site->getLanguageById($language)->getTypo3Language());
             $this->output->writeln('Configuration:');
             $this->output->writeln('- Slug Format: ' . join(' ' . $fieldSeparator . ' ', $slugFormat));
             foreach ($replacements as $char => $replace) {
