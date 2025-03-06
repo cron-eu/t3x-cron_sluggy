@@ -198,7 +198,11 @@ class SlugRegeneratorService implements SiteAwareInterface
                 }
                 $path = $this->site->getBase()->getPath();
                 $sourcePath =  '/' . trim($path, '/') . '/' . ltrim($row['slug'], '/');
-                $this->createRedirect($host, $sourcePath, $row['uid'], $this->createRedirects);
+                if ($row['t3ver_wsid'] > 0) {
+                    // no redirects for pages in workspace!
+                } else {
+                    $this->createRedirect($host, $sourcePath, $row['uid'], $this->createRedirects);
+                }
             }
         }
 
