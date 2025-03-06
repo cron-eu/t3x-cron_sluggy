@@ -218,7 +218,7 @@ class SlugRegeneratorService implements SiteAwareInterface
             } elseif ($this->outputFormat === 'html') {
                 $diff = new ColorDiffer();
                 $this->output->writeln(sprintf(
-                    "<tr class='%s'><td>%s</td><td>%s</td><td>%s</td><td class='table-%s'>%s</td><td>%s</td></tr>\n",
+                    "<tr class='%s'><td>%s</td><td>%s</td><td>%s</td><td class='table-%s'>%s</td><td>%s</td></tr>",
                     $row['hidden'] ? 'table-secondary' : '',
                     $row['uid'],
                     match ($row['doktype']) {
