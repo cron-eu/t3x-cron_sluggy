@@ -53,7 +53,7 @@ class SlugRegeneratorService implements SiteAwareInterface
     /**
      * @var bool
      */
-    protected $dryMode;
+    protected $dryRun;
 
     /**
      * @var int|null
@@ -73,15 +73,15 @@ class SlugRegeneratorService implements SiteAwareInterface
      * SlugRegeneratorService constructor.
      * @param OutputInterface $output
      * @param LoggerInterface $logger
-     * @param bool $dryMode
+     * @param bool $dryRun
      * @param int $createRedirects
      * @param string $outputFormat
      */
-    public function __construct(OutputInterface $output, LoggerInterface $logger, bool $dryMode, int $createRedirects, string $outputFormat)
+    public function __construct(OutputInterface $output, LoggerInterface $logger, bool $dryRun, int $createRedirects, string $outputFormat)
     {
         $this->logger = $logger;
         $this->output = $output;
-        $this->dryMode = $dryMode;
+        $this->dryRun = $dryRun;
         $this->createRedirects = $createRedirects;
         $this->outputFormat = $outputFormat;
     }
@@ -188,7 +188,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         // Is is changed??
         $changedSlug = ($row['slug'] !== $slug);
 
-        if (!$this->dryMode && $changedSlug) {
+        if (!$this->dryRun && $changedSlug) {
             // Do the actual database action of updating the slug and creating a redirect
             $this->updateSlug($row, $slug);
             if ($this->createRedirects !== null && !empty($row['slug'])) {
@@ -410,7 +410,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
 
         if ($this->outputFormat === 'plain') {
-            if ($this->dryMode) {
+            if ($this->dryRun) {
                 $this->output->warning('No changes applied due to dry-run!');
             }
         }
