@@ -6,10 +6,11 @@ use Cron\CronSluggy\ColorDiffer;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\DataHandling\Model\RecordStateFactory;
 use TYPO3\CMS\Core\DataHandling\SlugHelper;
+use TYPO3\CMS\Core\Database\Connection;
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Routing\Aspect\SiteAccessorTrait;
@@ -302,12 +303,12 @@ class SlugRegeneratorService implements SiteAwareInterface
             $queryBuilder->select('*')
                 ->from('pages')
                 ->where(
-                    $queryBuilder->expr()->eq($idField, $queryBuilder->createNamedParameter($id, \PDO::PARAM_INT)),
-                    $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT))
+                    $queryBuilder->expr()->eq($idField, $queryBuilder->createNamedParameter($id, Connection::PARAM_INT)),
+                    $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter($language, Connection::PARAM_INT))
                 )
                 ->orderBy('sorting');
-            $statement = $queryBuilder->execute();
-            while ($row = $statement->fetch()) {
+            $statement = $queryBuilder->executeQuery();
+            while ($row = $statement->fetchAssociative()) {
                 // New slug for the page itself
                 $this->regenerateSlugForPage($row, $depth, $begin);
                 $nextId = $row['l10n_parent'] ?: $row['uid'];
