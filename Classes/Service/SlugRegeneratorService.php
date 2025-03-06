@@ -215,7 +215,6 @@ class SlugRegeneratorService implements SiteAwareInterface
                 PageRepository::DOKTYPE_MOUNTPOINT => 'Mountpoint',
                 PageRepository::DOKTYPE_SPACER => 'Spacer',
                 PageRepository::DOKTYPE_SYSFOLDER => 'Folder',
-                PageRepository::DOKTYPE_RECYCLER => 'Recycler',
             };
 
             if ($this->outputFormat === 'csv') {
@@ -429,7 +428,6 @@ class SlugRegeneratorService implements SiteAwareInterface
             // support doktype exclusion of TYPO3
             if (in_array($row['doktype'], [
                 PageRepository::DOKTYPE_SPACER,
-                PageRepository::DOKTYPE_RECYCLER,
                 PageRepository::DOKTYPE_SYSFOLDER,
             ])) {
                 // skip this slug and use the parent pages slugs
