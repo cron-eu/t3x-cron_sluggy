@@ -6,10 +6,11 @@ use Cron\CronSluggy\ColorDiffer;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\DataHandling\Model\RecordStateFactory;
 use TYPO3\CMS\Core\DataHandling\SlugHelper;
+use TYPO3\CMS\Core\Database\Connection;
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Routing\Aspect\SiteAccessorTrait;
@@ -52,7 +53,7 @@ class SlugRegeneratorService implements SiteAwareInterface
     /**
      * @var bool
      */
-    protected $dryMode;
+    protected $dryRun;
 
     /**
      * @var int|null
@@ -72,15 +73,15 @@ class SlugRegeneratorService implements SiteAwareInterface
      * SlugRegeneratorService constructor.
      * @param OutputInterface $output
      * @param LoggerInterface $logger
-     * @param bool $dryMode
+     * @param bool $dryRun
      * @param int $createRedirects
      * @param string $outputFormat
      */
-    public function __construct(OutputInterface $output, LoggerInterface $logger, bool $dryMode, int $createRedirects, string $outputFormat)
+    public function __construct(OutputInterface $output, LoggerInterface $logger, bool $dryRun, int $createRedirects, string $outputFormat)
     {
         $this->logger = $logger;
         $this->output = $output;
-        $this->dryMode = $dryMode;
+        $this->dryRun = $dryRun;
         $this->createRedirects = $createRedirects;
         $this->outputFormat = $outputFormat;
     }
@@ -187,7 +188,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         // Is is changed??
         $changedSlug = ($row['slug'] !== $slug);
 
-        if (!$this->dryMode && $changedSlug) {
+        if (!$this->dryRun && $changedSlug) {
             // Do the actual database action of updating the slug and creating a redirect
             $this->updateSlug($row, $slug);
             if ($this->createRedirects !== null && !empty($row['slug'])) {
@@ -215,7 +216,6 @@ class SlugRegeneratorService implements SiteAwareInterface
                 PageRepository::DOKTYPE_MOUNTPOINT => 'Mountpoint',
                 PageRepository::DOKTYPE_SPACER => 'Spacer',
                 PageRepository::DOKTYPE_SYSFOLDER => 'Folder',
-                PageRepository::DOKTYPE_RECYCLER => 'Recycler',
             };
 
             if ($this->outputFormat === 'csv') {
@@ -303,12 +303,12 @@ class SlugRegeneratorService implements SiteAwareInterface
             $queryBuilder->select('*')
                 ->from('pages')
                 ->where(
-                    $queryBuilder->expr()->eq($idField, $queryBuilder->createNamedParameter($id, \PDO::PARAM_INT)),
-                    $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT))
+                    $queryBuilder->expr()->eq($idField, $queryBuilder->createNamedParameter($id, Connection::PARAM_INT)),
+                    $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter($language, Connection::PARAM_INT))
                 )
                 ->orderBy('sorting');
-            $statement = $queryBuilder->execute();
-            while ($row = $statement->fetch()) {
+            $statement = $queryBuilder->executeQuery();
+            while ($row = $statement->fetchAssociative()) {
                 // New slug for the page itself
                 $this->regenerateSlugForPage($row, $depth, $begin);
                 $nextId = $row['l10n_parent'] ?: $row['uid'];
@@ -361,7 +361,7 @@ class SlugRegeneratorService implements SiteAwareInterface
             $this->output->writeln('<h1>Site: ' . $this->site->getIdentifier() . '</h1>');
             $this->output->writeln('<ul>');
             $this->output->writeln('<li>URL: ' . (string)$this->site->getBase() . '</li>');
-            $this->output->writeln('<li>Language: ' . (string)$this->site->getLanguageById($language)->getTwoLetterIsoCode() . '</li>');
+            $this->output->writeln('<li>Language: ' . (string)$this->site->getLanguageById($language)->getTypo3Language() . '</li>');
             $this->output->writeln('</ul>');
             $this->output->writeln('<h4>Configuration</h4><ul>');
             $this->output->writeln('<li>Slug Format: <code>' . join(' ' . $fieldSeparator . ' ', $slugFormat) . '</code></li>');
@@ -375,7 +375,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         } else {
             $this->output->writeln('Site: ' . $this->site->getIdentifier());
             $this->output->writeln('- URL: ' . (string)$this->site->getBase());
-            $this->output->writeln('- Language: ' . (string)$this->site->getLanguageById($language)->getTwoLetterIsoCode());
+            $this->output->writeln('- Language: ' . (string)$this->site->getLanguageById($language)->getTypo3Language());
             $this->output->writeln('Configuration:');
             $this->output->writeln('- Slug Format: ' . join(' ' . $fieldSeparator . ' ', $slugFormat));
             foreach ($replacements as $char => $replace) {
@@ -410,7 +410,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
 
         if ($this->outputFormat === 'plain') {
-            if ($this->dryMode) {
+            if ($this->dryRun) {
                 $this->output->warning('No changes applied due to dry-run!');
             }
         }
@@ -429,7 +429,6 @@ class SlugRegeneratorService implements SiteAwareInterface
             // support doktype exclusion of TYPO3
             if (in_array($row['doktype'], [
                 PageRepository::DOKTYPE_SPACER,
-                PageRepository::DOKTYPE_RECYCLER,
                 PageRepository::DOKTYPE_SYSFOLDER,
             ])) {
                 // skip this slug and use the parent pages slugs

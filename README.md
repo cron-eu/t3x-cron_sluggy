@@ -28,9 +28,9 @@ Configure settings in Extension Configuration:
 Usage
 -----
 
-    bin/typo3 sluggy:regenerate [-d|--dry-mode] [-r|--redirects [REDIRECTS]] [-f|--format [FORMAT]] [--] <root-page> <language>
+    bin/typo3 sluggy:regenerate [-d|--dry-run] [-r|--redirects [REDIRECTS]] [-f|--format [FORMAT]] [--] <root-page> <language>
 
-      -d, --dry-mode               do not change anything
+      -d, --dry-run                do not change anything
       -r, --redirects[=REDIRECTS]  create redirects for changed slugs with this TTL in days
                                     • [default: 30]
       -f, --format[=FORMAT]        print output as "plain", "csv" or "html"
@@ -49,4 +49,4 @@ New slugs for all pages starting at root page 420, and create redirects which ex
 
 Just show slugs for pages starting at root page 420 which would be created
 
-    bin/typo3cms sluggy:regenerate --dry-mode -- 420
+    bin/typo3cms sluggy:regenerate --dry-run -- 420

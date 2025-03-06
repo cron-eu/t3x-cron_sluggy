@@ -36,7 +36,7 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
     {
         $this->setDescription($this->commandDescription)
             ->setHelp($this->commandHelp)
-            ->addOption('dry-mode','-d', InputOption::VALUE_NONE, 'do not change anything')
+            ->addOption('dry-run','-d', InputOption::VALUE_NONE, 'do not change anything')
             ->addOption('format','-f', InputOption::VALUE_REQUIRED, 'output format (csv, html, plain). plain is the default')
             ->addOption('redirects','-r', InputOption::VALUE_OPTIONAL, 'create redirects for changed slugs with this TTL in days', 30)
             ->addArgument('root-page', InputArgument::REQUIRED)
@@ -54,10 +54,10 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
      *
      * @throws SiteNotFoundException
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $dryMode = (bool)$input->getOption('dry-mode');
+        $dryRun = (bool)$input->getOption('dry-run');
         $outputFormat = $input->getOption('format') ?? 'plain';
         $redirectsOption = $input->getOption('redirects');
         if (false === $redirectsOption) {
@@ -77,7 +77,7 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
             SlugRegeneratorService::class,
             $io,
             $this->logger,
-            $dryMode,
+            $dryRun,
             $createRedirects,
             $outputFormat
         );
