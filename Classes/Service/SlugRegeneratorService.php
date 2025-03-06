@@ -384,6 +384,12 @@ class SlugRegeneratorService implements SiteAwareInterface
         if ($this->outputFormat === 'html') {
             $this->output->writeln("</table></body></html>\n");
         }
+
+        if ($this->outputFormat === 'plain') {
+            if ($this->dryMode) {
+                $this->output->warning('No changes applied due to dry-run!');
+            }
+        }
     }
 
     private function cacheSlugForPage(string $slug, array $row): void
