@@ -181,8 +181,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         $this->cacheSlugForPage($slug, $row);
 
         // Make sure it is unique
-        $state = RecordStateFactory::forName('pages')
-            ->fromArray($row);
+        $state = RecordStateFactory::forName('pages')->fromArray($row);
         $slug = $slugHelper->buildSlugForUniqueInSite($slug, $state);
 
         // Is is changed??
@@ -262,6 +261,7 @@ class SlugRegeneratorService implements SiteAwareInterface
      * Recursively regenerate slugs on all descendants of a given page
      *
      * @param int $id uid of the page
+     * @param int $language uid of the language
      * @param int $depth in which depth are we
      * @param bool $begin On first call, return the page itself, on further (recursive) calls, pages with pid = $id
      *
@@ -269,7 +269,7 @@ class SlugRegeneratorService implements SiteAwareInterface
      *
      * @throws SiteNotFoundException
      */
-    public function executeOnPageTree(int $id, int $depth = 0, $begin = true)
+    public function executeOnPageTree(int $id, int $language = 0, int $depth = 0, $begin = true)
     {
         $id = (int)$id;
         if ($id < 0) {
@@ -277,6 +277,9 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
         if ($begin) {
             $idField = 'uid';
+            if ($language) {
+                $idField = 'l10n_parent';
+            }
         } else {
             $idField = 'pid';
         }
@@ -288,16 +291,17 @@ class SlugRegeneratorService implements SiteAwareInterface
                 ->from('pages')
                 ->where(
                     $queryBuilder->expr()->eq($idField, $queryBuilder->createNamedParameter($id, \PDO::PARAM_INT)),
-                    $queryBuilder->expr()->eq('sys_language_uid', 0)
+                    $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT))
                 )
                 ->orderBy('sorting');
             $statement = $queryBuilder->execute();
             while ($row = $statement->fetch()) {
                 // New slug for the page itself
                 $this->regenerateSlugForPage($row, $depth, $begin);
-                $theList[] = $row['uid'];
+                $nextId = $row['l10n_parent'] ?: $row['uid'];
+                $theList[] = $nextId;
                 // Recurse on all subpages
-                $subList = $this->executeOnPageTree($row['uid'], ++$depth, false);
+                $subList = $this->executeOnPageTree($nextId, $language, ++$depth, false);
                 $depth--;
                 $theList = array_merge($theList, $subList);
             }
@@ -309,12 +313,13 @@ class SlugRegeneratorService implements SiteAwareInterface
      * Regenerate slugs for a whole page tree
      *
      * @param int $rootPage The starting point in the page tree
+     * @param int $language The uid of the language
      *
      * @return void
      *
      * @throws SiteNotFoundException
      */
-    public function execute(int $rootPage)
+    public function execute(int $rootPage, int $language)
     {
         $this->site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId($rootPage);
 
@@ -340,7 +345,11 @@ class SlugRegeneratorService implements SiteAwareInterface
             $this->output->writeln('<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">');
             #$this->output->writeln('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">');
             $this->output->writeln('</head><body>');
-            $this->output->writeln(sprintf('<h1>Site: %s (%s)</h1>', $this->site->getIdentifier(), (string)$this->site->getBase()));
+            $this->output->writeln('<h1>Site: ' . $this->site->getIdentifier() . '</h1>');
+            $this->output->writeln('<ul>');
+            $this->output->writeln('<li>URL: ' . (string)$this->site->getBase() . '</li>');
+            $this->output->writeln('<li>Language: ' . (string)$this->site->getLanguageById($language)->getTwoLetterIsoCode() . '</li>');
+            $this->output->writeln('</ul>');
             $this->output->writeln('<h4>Configuration</h4><ul>');
             $this->output->writeln('<li>Slug Format: <code>' . join(' ' . $fieldSeparator . ' ', $slugFormat) . '</code></li>');
             foreach ($replacements as $char => $replace) {
@@ -351,7 +360,9 @@ class SlugRegeneratorService implements SiteAwareInterface
             }
             $this->output->writeln('</ul><table class="table"><tr><th>UID</th><th>Type</th><th>Hidden?</th><th>Slug</th><th>Redirect</th></tr>');
         } else {
-            $this->output->writeln(sprintf('Site: %s (%s)', $this->site->getIdentifier(), (string)$this->site->getBase()));
+            $this->output->writeln('Site: ' . $this->site->getIdentifier());
+            $this->output->writeln('- URL: ' . (string)$this->site->getBase());
+            $this->output->writeln('- Language: ' . (string)$this->site->getLanguageById($language)->getTwoLetterIsoCode());
             $this->output->writeln('Configuration:');
             $this->output->writeln('- Slug Format: ' . join(' ' . $fieldSeparator . ' ', $slugFormat));
             foreach ($replacements as $char => $replace) {
@@ -379,7 +390,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
 
         // Start recursion
-        $this->executeOnPageTree($rootPage);
+        $this->executeOnPageTree($rootPage, $language);
 
         if ($this->outputFormat === 'html') {
             $this->output->writeln("</table></body></html>\n");

@@ -40,6 +40,7 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
             ->addOption('format','-f', InputOption::VALUE_REQUIRED, 'output format (csv, html, plain). plain is the default')
             ->addOption('redirects','-r', InputOption::VALUE_OPTIONAL, 'create redirects for changed slugs with this TTL in days', 30)
             ->addArgument('root-page', InputArgument::REQUIRED)
+            ->addArgument('language', InputArgument::OPTIONAL, '', 0)
         ;
     }
 
@@ -70,6 +71,7 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
             $createRedirects = $redirectsOption;
         }
         $rootPage = $input->getArgument('root-page');
+        $language = $input->getArgument('language');
 
         $migration = GeneralUtility::makeInstance(
             SlugRegeneratorService::class,
@@ -79,7 +81,7 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
             $createRedirects,
             $outputFormat
         );
-        $migration->execute((int)$rootPage);
+        $migration->execute((int)$rootPage, (int)$language);
 
         return Command::SUCCESS;
     }

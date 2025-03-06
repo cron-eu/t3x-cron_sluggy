@@ -28,7 +28,7 @@ Configure settings in Extension Configuration:
 Usage
 -----
 
-    bin/typo3cms sluggy:regenerate [-d|--dry-mode] [-r|--redirects [REDIRECTS]] [--] <root-page>
+    bin/typo3cms sluggy:regenerate [-d|--dry-mode] [-r|--redirects [REDIRECTS]] [--] <root-page> <language>
 
       -d, --dry-mode               do not change anything
       -r, --redirects[=REDIRECTS]  create redirects for changed slugs with this TTL in days
