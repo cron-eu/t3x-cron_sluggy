@@ -54,7 +54,7 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
      *
      * @throws SiteNotFoundException
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         $dryMode = (bool)$input->getOption('dry-mode');
