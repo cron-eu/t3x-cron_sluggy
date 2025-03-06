@@ -207,10 +207,22 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
 
         if ($changedSlug || $this->output->isVerbose()) {
+            $doktype = match ($row['doktype']) {
+                PageRepository::DOKTYPE_DEFAULT => '',
+                PageRepository::DOKTYPE_LINK => 'External link',
+                PageRepository::DOKTYPE_SHORTCUT => 'Shortcut',
+                PageRepository::DOKTYPE_BE_USER_SECTION => 'BE user section',
+                PageRepository::DOKTYPE_MOUNTPOINT => 'Mountpoint',
+                PageRepository::DOKTYPE_SPACER => 'Spacer',
+                PageRepository::DOKTYPE_SYSFOLDER => 'Folder',
+                PageRepository::DOKTYPE_RECYCLER => 'Recycler',
+            };
+
             if ($this->outputFormat === 'csv') {
                 $this->output->writeln(sprintf(
-                    '%s;%s;%s;%s',
+                    '%d;%s;%s;%s;%s',
                     $row['uid'],
+                    $doktype,
                     $row['hidden'] ? 'hidden' : '',
                     $changedSlug ? $slug : 'UNCHANGED',
                     $row['slug'],
@@ -221,16 +233,7 @@ class SlugRegeneratorService implements SiteAwareInterface
                     "<tr class='%s'><td>%s</td><td>%s</td><td>%s</td><td class='table-%s'>%s</td><td>%s</td></tr>",
                     $row['hidden'] ? 'table-secondary' : '',
                     $row['uid'],
-                    match ($row['doktype']) {
-                        PageRepository::DOKTYPE_DEFAULT => '',
-                        PageRepository::DOKTYPE_LINK => 'External link',
-                        PageRepository::DOKTYPE_SHORTCUT => 'Shortcut',
-                        PageRepository::DOKTYPE_BE_USER_SECTION => 'BE user section',
-                        PageRepository::DOKTYPE_MOUNTPOINT => 'Mountpoint',
-                        PageRepository::DOKTYPE_SPACER => 'Spacer',
-                        PageRepository::DOKTYPE_SYSFOLDER => 'Folder',
-                        PageRepository::DOKTYPE_RECYCLER => 'Recycler',
-                    },
+                    $doktype,
                     $row['hidden'] ? 'hidden' : '',
                     $changedSlug ? 'warning' : 'success',
                     $changedSlug
@@ -250,7 +253,13 @@ class SlugRegeneratorService implements SiteAwareInterface
                         : ''
                 ));
             } else {
-                $this->output->writeln(sprintf("%s %s%s", str_repeat('*', $depth + 1), $row['uid'], $row['hidden'] ? ' (HIDDEN)' : ''));
+                $this->output->writeln(sprintf(
+                    "%s %s%s%s",
+                    str_repeat('*', $depth + 1),
+                    $row['uid'],
+                    $doktype ? ' (' . $doktype . ')' : '',
+                    $row['hidden'] ? ' (HIDDEN)' : ''
+                ));
                 if ($changedSlug) {
                     $this->output->writeln(sprintf("  OLD: %s", $row['slug']));
                     $this->output->writeln(sprintf("  NEW: %s", $slug));
@@ -342,7 +351,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
 
         if ($this->outputFormat === 'csv') {
-            $this->output->writeln('uid;hidden;old_slug;new_slug');
+            $this->output->writeln('uid;doktype;hidden;old_slug;new_slug');
         } elseif ($this->outputFormat === 'html') {
             $this->output->writeln('<html><head>');
             #$this->output->writeln('<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>');
