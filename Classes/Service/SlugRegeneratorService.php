@@ -181,8 +181,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         $this->cacheSlugForPage($slug, $row);
 
         // Make sure it is unique
-        $state = RecordStateFactory::forName('pages')
-            ->fromArray($row);
+        $state = RecordStateFactory::forName('pages')->fromArray($row);
         $slug = $slugHelper->buildSlugForUniqueInSite($slug, $state);
 
         // Is is changed??
@@ -198,16 +197,32 @@ class SlugRegeneratorService implements SiteAwareInterface
                     $host .= ':' . $port;
                 }
                 $path = $this->site->getBase()->getPath();
-                $sourcePath =  '/' . trim($path, '/') . '/' . ltrim($row['slug'], '/');
-                $this->createRedirect($host, $sourcePath, $row['uid'], $this->createRedirects);
+                $sourcePath =  rtrim($path, '/') . '/' . ltrim($row['slug'], '/');
+                if ($row['t3ver_wsid'] > 0) {
+                    // no redirects for pages in workspace!
+                } else {
+                    $this->createRedirect($host, $sourcePath, $row['uid'], $this->createRedirects);
+                }
             }
         }
 
         if ($changedSlug || $this->output->isVerbose()) {
+            $doktype = match ($row['doktype']) {
+                PageRepository::DOKTYPE_DEFAULT => '',
+                PageRepository::DOKTYPE_LINK => 'External link',
+                PageRepository::DOKTYPE_SHORTCUT => 'Shortcut',
+                PageRepository::DOKTYPE_BE_USER_SECTION => 'BE user section',
+                PageRepository::DOKTYPE_MOUNTPOINT => 'Mountpoint',
+                PageRepository::DOKTYPE_SPACER => 'Spacer',
+                PageRepository::DOKTYPE_SYSFOLDER => 'Folder',
+                PageRepository::DOKTYPE_RECYCLER => 'Recycler',
+            };
+
             if ($this->outputFormat === 'csv') {
                 $this->output->writeln(sprintf(
-                    '%s;%s;%s;%s',
+                    '%d;%s;%s;%s;%s',
                     $row['uid'],
+                    $doktype,
                     $row['hidden'] ? 'hidden' : '',
                     $changedSlug ? $slug : 'UNCHANGED',
                     $row['slug'],
@@ -215,19 +230,10 @@ class SlugRegeneratorService implements SiteAwareInterface
             } elseif ($this->outputFormat === 'html') {
                 $diff = new ColorDiffer();
                 $this->output->writeln(sprintf(
-                    "<tr class='%s'><td>%s</td><td>%s</td><td>%s</td><td class='table-%s'>%s</td><td>%s</td></tr>\n",
+                    "<tr class='%s'><td>%s</td><td>%s</td><td>%s</td><td class='table-%s'>%s</td><td>%s</td></tr>",
                     $row['hidden'] ? 'table-secondary' : '',
                     $row['uid'],
-                    match ($row['doktype']) {
-                        PageRepository::DOKTYPE_DEFAULT => '',
-                        PageRepository::DOKTYPE_LINK => 'External link',
-                        PageRepository::DOKTYPE_SHORTCUT => 'Shortcut',
-                        PageRepository::DOKTYPE_BE_USER_SECTION => 'BE user section',
-                        PageRepository::DOKTYPE_MOUNTPOINT => 'Mountpoint',
-                        PageRepository::DOKTYPE_SPACER => 'Spacer',
-                        PageRepository::DOKTYPE_SYSFOLDER => 'Folder',
-                        PageRepository::DOKTYPE_RECYCLER => 'Recycler',
-                    },
+                    $doktype,
                     $row['hidden'] ? 'hidden' : '',
                     $changedSlug ? 'warning' : 'success',
                     $changedSlug
@@ -247,7 +253,13 @@ class SlugRegeneratorService implements SiteAwareInterface
                         : ''
                 ));
             } else {
-                $this->output->writeln(sprintf("%s %s%s", str_repeat('*', $depth + 1), $row['uid'], $row['hidden'] ? ' (HIDDEN)' : ''));
+                $this->output->writeln(sprintf(
+                    "%s %s%s%s",
+                    str_repeat('*', $depth + 1),
+                    $row['uid'],
+                    $doktype ? ' (' . $doktype . ')' : '',
+                    $row['hidden'] ? ' (HIDDEN)' : ''
+                ));
                 if ($changedSlug) {
                     $this->output->writeln(sprintf("  OLD: %s", $row['slug']));
                     $this->output->writeln(sprintf("  NEW: %s", $slug));
@@ -262,6 +274,7 @@ class SlugRegeneratorService implements SiteAwareInterface
      * Recursively regenerate slugs on all descendants of a given page
      *
      * @param int $id uid of the page
+     * @param int $language uid of the language
      * @param int $depth in which depth are we
      * @param bool $begin On first call, return the page itself, on further (recursive) calls, pages with pid = $id
      *
@@ -269,7 +282,7 @@ class SlugRegeneratorService implements SiteAwareInterface
      *
      * @throws SiteNotFoundException
      */
-    public function executeOnPageTree(int $id, int $depth = 0, $begin = true)
+    public function executeOnPageTree(int $id, int $language = 0, int $depth = 0, $begin = true)
     {
         $id = (int)$id;
         if ($id < 0) {
@@ -277,6 +290,9 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
         if ($begin) {
             $idField = 'uid';
+            if ($language) {
+                $idField = 'l10n_parent';
+            }
         } else {
             $idField = 'pid';
         }
@@ -288,16 +304,17 @@ class SlugRegeneratorService implements SiteAwareInterface
                 ->from('pages')
                 ->where(
                     $queryBuilder->expr()->eq($idField, $queryBuilder->createNamedParameter($id, \PDO::PARAM_INT)),
-                    $queryBuilder->expr()->eq('sys_language_uid', 0)
+                    $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT))
                 )
                 ->orderBy('sorting');
             $statement = $queryBuilder->execute();
             while ($row = $statement->fetch()) {
                 // New slug for the page itself
                 $this->regenerateSlugForPage($row, $depth, $begin);
-                $theList[] = $row['uid'];
+                $nextId = $row['l10n_parent'] ?: $row['uid'];
+                $theList[] = $nextId;
                 // Recurse on all subpages
-                $subList = $this->executeOnPageTree($row['uid'], ++$depth, false);
+                $subList = $this->executeOnPageTree($nextId, $language, ++$depth, false);
                 $depth--;
                 $theList = array_merge($theList, $subList);
             }
@@ -309,12 +326,13 @@ class SlugRegeneratorService implements SiteAwareInterface
      * Regenerate slugs for a whole page tree
      *
      * @param int $rootPage The starting point in the page tree
+     * @param int $language The uid of the language
      *
      * @return void
      *
      * @throws SiteNotFoundException
      */
-    public function execute(int $rootPage)
+    public function execute(int $rootPage, int $language)
     {
         $this->site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId($rootPage);
 
@@ -333,14 +351,18 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
 
         if ($this->outputFormat === 'csv') {
-            $this->output->writeln('uid;hidden;old_slug;new_slug');
+            $this->output->writeln('uid;doktype;hidden;old_slug;new_slug');
         } elseif ($this->outputFormat === 'html') {
             $this->output->writeln('<html><head>');
             #$this->output->writeln('<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>');
             $this->output->writeln('<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">');
             #$this->output->writeln('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">');
             $this->output->writeln('</head><body>');
-            $this->output->writeln(sprintf('<h1>Site: %s (%s)</h1>', $this->site->getIdentifier(), (string)$this->site->getBase()));
+            $this->output->writeln('<h1>Site: ' . $this->site->getIdentifier() . '</h1>');
+            $this->output->writeln('<ul>');
+            $this->output->writeln('<li>URL: ' . (string)$this->site->getBase() . '</li>');
+            $this->output->writeln('<li>Language: ' . (string)$this->site->getLanguageById($language)->getTwoLetterIsoCode() . '</li>');
+            $this->output->writeln('</ul>');
             $this->output->writeln('<h4>Configuration</h4><ul>');
             $this->output->writeln('<li>Slug Format: <code>' . join(' ' . $fieldSeparator . ' ', $slugFormat) . '</code></li>');
             foreach ($replacements as $char => $replace) {
@@ -351,7 +373,9 @@ class SlugRegeneratorService implements SiteAwareInterface
             }
             $this->output->writeln('</ul><table class="table"><tr><th>UID</th><th>Type</th><th>Hidden?</th><th>Slug</th><th>Redirect</th></tr>');
         } else {
-            $this->output->writeln(sprintf('Site: %s (%s)', $this->site->getIdentifier(), (string)$this->site->getBase()));
+            $this->output->writeln('Site: ' . $this->site->getIdentifier());
+            $this->output->writeln('- URL: ' . (string)$this->site->getBase());
+            $this->output->writeln('- Language: ' . (string)$this->site->getLanguageById($language)->getTwoLetterIsoCode());
             $this->output->writeln('Configuration:');
             $this->output->writeln('- Slug Format: ' . join(' ' . $fieldSeparator . ' ', $slugFormat));
             foreach ($replacements as $char => $replace) {
@@ -379,10 +403,16 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
 
         // Start recursion
-        $this->executeOnPageTree($rootPage);
+        $this->executeOnPageTree($rootPage, $language);
 
         if ($this->outputFormat === 'html') {
             $this->output->writeln("</table></body></html>\n");
+        }
+
+        if ($this->outputFormat === 'plain') {
+            if ($this->dryMode) {
+                $this->output->warning('No changes applied due to dry-run!');
+            }
         }
     }
 
