@@ -74,10 +74,10 @@ class SlugRegeneratorService implements SiteAwareInterface
      * @param OutputInterface $output
      * @param LoggerInterface $logger
      * @param bool $dryRun
-     * @param int $createRedirects
+     * @param ?int $createRedirects
      * @param string $outputFormat
      */
-    public function __construct(OutputInterface $output, LoggerInterface $logger, bool $dryRun, int $createRedirects, string $outputFormat)
+    public function __construct(OutputInterface $output, LoggerInterface $logger, bool $dryRun, ?int $createRedirects, string $outputFormat)
     {
         $this->logger = $logger;
         $this->output = $output;
