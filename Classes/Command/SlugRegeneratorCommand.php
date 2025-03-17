@@ -38,7 +38,7 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
             ->setHelp($this->commandHelp)
             ->addOption('dry-run','-d', InputOption::VALUE_NONE, 'do not change anything')
             ->addOption('format','-f', InputOption::VALUE_REQUIRED, 'output format (csv, html, plain). plain is the default')
-            ->addOption('redirects','-r', InputOption::VALUE_OPTIONAL, 'create redirects for changed slugs with this TTL in days', 30)
+            ->addOption('redirects','-r', InputOption::VALUE_OPTIONAL, 'create redirects for changed slugs with this TTL in days', false)
             ->addArgument('root-page', InputArgument::REQUIRED)
             ->addArgument('language', InputArgument::OPTIONAL, '', 0)
         ;
@@ -68,7 +68,7 @@ class SlugRegeneratorCommand extends Command implements LoggerAwareInterface
             $createRedirects = 30;
         } else {
             // option was passed, and value was given
-            $createRedirects = $redirectsOption;
+            $createRedirects = (int)$redirectsOption;
         }
         $rootPage = $input->getArgument('root-page');
         $language = $input->getArgument('language');
