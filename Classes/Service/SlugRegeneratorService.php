@@ -389,14 +389,18 @@ class SlugRegeneratorService implements SiteAwareInterface
 
         if ($rootPage !== $this->site->getRootPageId()) {
             // Prefill slug cache
-            $additionalFields = [];
+            $additionalFields = ['l10n_parent', 'sys_language_uid'];
             if (ExtensionManagementUtility::isLoaded('masi')) {
                 $additionalFields[] = 'exclude_slug_for_subpages';
             }
+
             $rootline = BackendUtility::BEgetRootLine($rootPage, '', false, $additionalFields);
             $rootline = array_reverse($rootline);
             foreach ($rootline as $page) {
                 if ($page['uid']) {
+                    if ($language > 0) {
+                        $page = BackendUtility::getRecordLocalization('pages', $page['uid'], $language)[0] ?? $page;
+                    }
                     $this->cacheSlugForPage($page['slug'], $page);
                 }
             }
@@ -416,14 +420,24 @@ class SlugRegeneratorService implements SiteAwareInterface
         }
     }
 
+    /**
+     * Add an entry to the slug cache.
+     *
+     * Due to the fact that the pid of any page record is ALWAYS pointing to a
+     * page of the default language, we need to make sure this cache is built in
+     * the same manner.
+     */
     private function cacheSlugForPage(string $slug, array $row): void
     {
+        // use the default language's uid!
+        $uid = $row['sys_language_uid'] > 0 ? $row['l10n_parent'] : $row['uid'];
+
         // support b13/masi exclusions
         if (isset($row['exclude_slug_for_subpages'])) {
             if ((bool)$row['exclude_slug_for_subpages']) {
-                $this->slugCache[$row['uid']] = $this->slugCache[$row['pid']];
+                $this->slugCache[$uid] = $this->slugCache[$row['pid']];
             } else {
-                $this->slugCache[$row['uid']] = $slug === '/' ? '' : $slug;
+                $this->slugCache[$uid] = $slug === '/' ? '' : $slug;
             }
         } else {
             // support doktype exclusion of TYPO3
@@ -432,9 +446,9 @@ class SlugRegeneratorService implements SiteAwareInterface
                 PageRepository::DOKTYPE_SYSFOLDER,
             ])) {
                 // skip this slug and use the parent pages slugs
-                $this->slugCache[$row['uid']] = $this->slugCache[$row['pid']];
+                $this->slugCache[$uid] = $this->slugCache[$row['pid']];
             } else {
-                $this->slugCache[$row['uid']] = $slug === '/' ? '' : $slug;
+                $this->slugCache[$uid] = $slug === '/' ? '' : $slug;
             }
         }
     }
