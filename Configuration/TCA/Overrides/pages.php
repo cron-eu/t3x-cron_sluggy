@@ -31,7 +31,7 @@ defined('TYPO3') || die ('Access denied.');
             'description' => 'LLL:EXT:cron_sluggy/Resources/Private/Language/locallang.xlf:pages.tx_cronsluggy_pathsegment.description',
             'config' => [
                 'type' => 'input',
-                'eval' => 'trim,uniqueInPid'
+                'eval' => 'trim'
             ]
         ],
     ];
