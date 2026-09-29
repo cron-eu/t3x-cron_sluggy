@@ -132,11 +132,13 @@ class SlugRegeneratorService implements SiteAwareInterface
             ->getConnectionForTable('sys_redirect');
         $target = sprintf('t3://page?uid=%s', $uid);
         $redirectRecord = [
+            'pid' => $this->site->getRootPageId(),
             'createdon' => (int)time(),
             'updatedon' => (int)time(),
             'source_host' => $host,
             'source_path' => $path,
             'target' => $target,
+            'target_statuscode' => (int)($this->site->getSettings()->get('redirects.httpStatusCode', 307)),
             'endtime' => (time() + ($daysToExpire * 24 * 60 * 60))
         ];
 
