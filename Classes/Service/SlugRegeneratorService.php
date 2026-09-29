@@ -48,7 +48,7 @@ class SlugRegeneratorService implements SiteAwareInterface
     /**
      * @var array
      */
-    protected $slugCache;
+    protected $slugCache = [];
 
     /**
      * @var bool
@@ -132,11 +132,13 @@ class SlugRegeneratorService implements SiteAwareInterface
             ->getConnectionForTable('sys_redirect');
         $target = sprintf('t3://page?uid=%s', $uid);
         $redirectRecord = [
+            'pid' => $this->site->getRootPageId(),
             'createdon' => (int)time(),
             'updatedon' => (int)time(),
             'source_host' => $host,
             'source_path' => $path,
             'target' => $target,
+            'target_statuscode' => (int)($this->site->getSettings()->get('redirects.httpStatusCode', 307)),
             'endtime' => (time() + ($daysToExpire * 24 * 60 * 60))
         ];
 
@@ -435,7 +437,7 @@ class SlugRegeneratorService implements SiteAwareInterface
         // support b13/masi exclusions
         if (isset($row['exclude_slug_for_subpages'])) {
             if ((bool)$row['exclude_slug_for_subpages']) {
-                $this->slugCache[$uid] = $this->slugCache[$row['pid']];
+                $this->slugCache[$uid] = $this->slugCache[$row['pid']] ?? '';
             } else {
                 $this->slugCache[$uid] = $slug === '/' ? '' : $slug;
             }
@@ -446,7 +448,7 @@ class SlugRegeneratorService implements SiteAwareInterface
                 PageRepository::DOKTYPE_SYSFOLDER,
             ])) {
                 // skip this slug and use the parent pages slugs
-                $this->slugCache[$uid] = $this->slugCache[$row['pid']];
+                $this->slugCache[$uid] = $this->slugCache[$row['pid']] ?? '';
             } else {
                 $this->slugCache[$uid] = $slug === '/' ? '' : $slug;
             }
